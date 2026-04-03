@@ -278,6 +278,7 @@ class TestFwFingerprintTiming(unittest.TestCase):
       'volkswagen': 0.65,
       'rivian': 0.3,
       'psa': 0.1,
+      'fca_giorgio': 0.1,  # FIXME: Placeholder, adjust timing when FCA Giorgio UDS is implemented
     }
 
     total_times = 0.0
