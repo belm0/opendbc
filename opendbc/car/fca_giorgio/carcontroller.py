@@ -15,10 +15,57 @@ class CarController(CarControllerBase):
 
     self.apply_torque_last = 0
     self.frame = 0
+    self.signal_left_last = False
+    self.signal_right_last = False
+    self.lkas_enable_start_frame = 0
+    self.lkas_disable_start_frame = 0
 
   def update(self, CC, CS, now_nanos):
     actuators = CC.actuators
     can_sends = []
+
+    # ------------------------------------------------------------------
+    # test spoofing center-console LKA enable button
+    #   right turn signal: enable
+    #   left turn signal: disable
+
+    signal_left_edge = CS.out.leftBlinker and not self.signal_left_last
+    signal_right_edge = CS.out.rightBlinker and not self.signal_right_last
+    self.signal_left_last = CS.out.leftBlinker
+    self.signal_right_last = CS.out.rightBlinker
+    target_bus = self.CANBUS.cam
+
+    if signal_right_edge and not self.lkas_enable_start_frame:
+      print('** starting LKAS enable')
+      # TODO: don't overwrite other signals in the message
+      msg = self.packer_pt.make_can_msg("BCM_3", target_bus, {"LKA_BUTTON": 1})
+      can_sends.append(msg)
+      self.lkas_enable_start_frame = self.frame
+
+    if self.lkas_enable_start_frame and self.frame - self.lkas_enable_start_frame > 20:
+      msg = self.packer_pt.make_can_msg("BCM_3", target_bus, {"LKA_BUTTON": 0})
+      can_sends.append(msg)
+      self.lkas_enable_start_frame = 0
+      print('** LKAS enable done')
+
+    if signal_left_edge and not self.lkas_disable_start_frame:
+      print('** starting LKAS disable')
+      self.lkas_disable_start_frame = self.frame
+
+    if self.lkas_disable_start_frame:
+      d_frames = self.frame - self.lkas_disable_start_frame
+      phase = d_frames // 20
+      if phase in (0, 2):
+        msg = self.packer_pt.make_can_msg("BCM_3", target_bus, {"LKA_BUTTON": 1})
+        can_sends.append(msg)
+      elif phase in (1, 3):
+        msg = self.packer_pt.make_can_msg("BCM_3", target_bus, {"LKA_BUTTON": 0})
+        can_sends.append(msg)
+      else:
+        self.lkas_disable_start_frame = 0
+        print('** LKAS enable done')
+    # ------------------------------------------------------------------
+
 
     # **** Steering Controls ************************************************ #
 
