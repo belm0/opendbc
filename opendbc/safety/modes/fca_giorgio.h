@@ -11,6 +11,7 @@
 #define FCA_GIORGIO_LKA_HUD_1       0x4AE
 #define FCA_GIORGIO_LKA_HUD_2       0x547
 #define FCA_GIORGIO_ACC_1           0x5A2
+#define FCA_GIORGIO_ACC_2           0x22A
 
 static uint8_t fca_giorgio_crc8_lut_j1850[256];  // Static lookup table for CRC8 SAE J1850
 
@@ -29,6 +30,8 @@ static safety_config fca_giorgio_init(uint16_t param) {
   // TODO: reenable checksums/counters on ABS_1 and EPS_3 once checksums are bruteforced
   static RxCheck fca_giorgio_rx_checks[] = {
     {.msg = {{FCA_GIORGIO_ACC_1, 0, 8, 12U, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true}, { 0 }, { 0 }}},
+    // TODO: confirm rate
+    {.msg = {{FCA_GIORGIO_ACC_2, 0, 8, 12U, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true}, { 0 }, { 0 }}},
     {.msg = {{FCA_GIORGIO_ABS_1, 0, 8, 100U, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true}, { 0 }, { 0 }}},
     {.msg = {{FCA_GIORGIO_ABS_3, 0, 8, 100U, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true}, { 0 }, { 0 }}},
     // TODO: confirm rate
@@ -92,19 +95,15 @@ static void fca_giorgio_rx_hook(const CANPacket_t *msg) {
       update_sample(&torque_driver, torque_driver_new);
     }
 
-    if (msg->addr == FCA_GIORGIO_ACC_1) {
+    if (msg->addr == FCA_GIORGIO_ACC_2) {
       // When using stock ACC, enter controls on rising edge of stock ACC engage, exit on disengage
       // Always exit controls on main switch off
-      // Signal: ACC_1.CRUISE_STATUS
-      int acc_status = (msg->data[2] & 0x60U) >> 5;
-      bool cruise_engaged = (acc_status == 2) || (acc_status == 3);
-      acc_main_on = cruise_engaged || (acc_status == 1);
-
+      // Signal: ACC_2.CRUISE_STATUS
+      bool cruise_engaged = GET_BIT(msg, 23U);
+      // TODO: don't think we need to set acc_main_on (engaged is gated).
+      //   `acc_main_on` member is dubious (most cars don't set it, and seems unused)
+      acc_main_on = true;
       pcm_cruise_check(cruise_engaged);
-
-      if (!acc_main_on) {
-        controls_allowed = false;
-      }
     }
 
     // TODO: find cruise button message
