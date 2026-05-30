@@ -20,7 +20,7 @@ static safety_config fca_giorgio_init(uint16_t param) {
 
   // TODO: need to find a button message for cancel spam
   static const CanMsg FCA_GIORGIO_TX_MSGS[] = {
-    {FCA_GIORGIO_LKA_COMMAND, 0, 8, .check_relay = true},
+    {FCA_GIORGIO_LKA_COMMAND, 0, 4, .check_relay = true},
     {FCA_GIORGIO_LKA_HUD_1, 0, 8, .check_relay = true},
     {FCA_GIORGIO_LKA_HUD_2, 0, 8, .check_relay = true},
   };
@@ -131,12 +131,12 @@ static bool fca_giorgio_tx_hook(const CANPacket_t *msg) {
 
   bool tx = true;
 
-  // Safety check for HCA_01 Heading Control Assist torque
-  // Signal: LKA_COMMAND.
-  // Signal: HCA_01.HCA_01_LM_OffSign (direction)
+  // Safety check for commanded steering torque
   if (msg->addr == FCA_GIORGIO_LKA_COMMAND) {
+    // Signal: LKA_COMMAND.LKA_TORQUE
     int desired_torque = ((msg->data[1] >> 5) | (msg->data[0] << 8)) - 1024U;
-    bool steer_req = GET_BIT(msg, 11U);
+    // Signal: LKA_COMMAND.LKA_ACTIVE
+    bool steer_req = GET_BIT(msg, 12U);
 
     if (steer_torque_cmd_checks(desired_torque, steer_req, FCA_GIORGIO_STEERING_LIMITS)) {
       tx = false;
