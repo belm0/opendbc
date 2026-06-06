@@ -27,27 +27,29 @@ class TestFcaGiorgio_Safety(common.CarSafetyTest, common.MotorTorqueSteeringSafe
     self.safety.set_safety_hooks(CarParams.SafetyModel.fcaGiorgio, 0)
     self.safety.init_tests()
 
-  #def _button_msg(self, cancel=False, resume=False):
-  #  pass
+  def _button_msg(self, cancel=False, resume=False):
+    values = {"CANCEL": cancel, "RESUME": resume}
+    return self.packer.make_can_msg_safety("ACC_BUTTON", 0, values)
 
   def _pcm_status_msg(self, enable):
-    values = {"CRUISE_STATUS": 2 if enable else 1}
-    return self.packer.make_can_msg_safety("ACC_1", 0, values)
+    values = {"CRUISE_STATUS": enable}
+    return self.packer.make_can_msg_safety("ACC_2", 0, values)
 
   def _speed_msg(self, speed):
     values = {"WHEEL_SPEED_%s" % s: speed for s in ["FL", "FR", "RL", "RR"]}
     return self.packer.make_can_msg_safety("ABS_1", 0, values)
 
-  #def _user_gas_msg(self, gas):
-  #  pass
+  def _user_gas_msg(self, gas):
+   values = {"ACCEL_PEDAL": gas}
+   return self.packer.make_can_msg_safety("ENGINE_1", 0, values)
 
   def _user_brake_msg(self, brake):
     values = {"BRAKE_PEDAL_SWITCH": 1 if brake else 0}
     return self.packer.make_can_msg_safety("ABS_3", 0, values)
 
   def _torque_meas_msg(self, torque):
-    values = {"EPS_TORQUE": torque}
-    return self.packer.make_can_msg_safety("EPS_3", 0, values)
+    values = {"DRIVER_TORQUE": torque}
+    return self.packer.make_can_msg_safety("EPS_2", 0, values)
 
   def _torque_cmd_msg(self, torque, steer_req=1):
     values = {"LKA_TORQUE": torque, "LKA_ACTIVE": steer_req}
@@ -58,7 +60,7 @@ class TestFcaGiorgio_Safety(common.CarSafetyTest, common.MotorTorqueSteeringSafe
       self.assertTrue(self._rx(self._speed_msg(0)), f"{count=}")
       self.assertTrue(self._rx(self._user_brake_msg(False)), f"{count=}")
       self.assertTrue(self._rx(self._torque_meas_msg(0)), f"{count=}")
-      #self.assertTrue(self._rx(self._user_gas_msg(0)), f"{count=}")
+      self.assertTrue(self._rx(self._user_gas_msg(0)), f"{count=}")
       self.assertTrue(self._rx(self._pcm_status_msg(False)), f"{count=}")
 
 
