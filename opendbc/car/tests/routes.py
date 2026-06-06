@@ -342,7 +342,8 @@ routes = [
   CarTestRoute("2c912ca5de3b1ee9/0000025d--6eb6bcbca4", TESLA.TESLA_MODEL_Y, segment=4),
   CarTestRoute("bdda168c0c35fad7/00000001--5c5a36ec06", TESLA.TESLA_MODEL_X), # openpilot longitudinal
 
-  CarTestRoute("6a3e5d31bf499cfe/0000000b--a48d1b4e42", FCA_GIORGIO.ALFA_ROMEO_STELVIO_1ST_GEN),
+  # CarTestRoute("6a3e5d31bf499cfe/0000000b--a48d1b4e42", FCA_GIORGIO.ALFA_ROMEO_STELVIO_1ST_GEN),
+  CarTestRoute("69cd3a350561a4d8/00000195--aa6ccc4f6e", FCA_GIORGIO.RAM_PROMASTER),
 
   # Segments that test specific issues
   # Controls mismatch due to standstill threshold
