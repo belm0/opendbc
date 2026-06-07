@@ -1,6 +1,6 @@
 #pragma once
 
-#include "opendbc/safety/declarations.h"
+#include "opendbc/safety/safety_declarations.h"
 
 #define FCA_GIORGIO_ABS_1           0xEEU
 #define FCA_GIORGIO_ABS_3           0xFAU
@@ -16,7 +16,7 @@
 static uint8_t fca_giorgio_crc8_lut_j1850[256];  // Static lookup table for CRC8 SAE J1850
 
 static safety_config fca_giorgio_init(uint16_t param) {
-  SAFETY_UNUSED(param);
+  ((void)(param));
 
   // TODO: need to find a button message for cancel spam
   static const CanMsg FCA_GIORGIO_TX_MSGS[] = {
