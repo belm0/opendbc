@@ -139,7 +139,7 @@ static bool fca_giorgio_tx_hook(const CANPacket_t *msg) {
   // Safety check for commanded steering torque
   if (msg->addr == FCA_GIORGIO_LKA_COMMAND) {
     // Signal: LKA_COMMAND.LKA_TORQUE
-    int desired_torque = ((msg->data[1] >> 5) | (msg->data[0] << 8)) - 1024U;
+    int desired_torque = ((msg->data[0] << 3) | (msg->data[1] >> 5)) - 1024U;
     // Signal: LKA_COMMAND.LKA_ACTIVE
     bool steer_req = GET_BIT(msg, 12U);
 
@@ -149,9 +149,6 @@ static bool fca_giorgio_tx_hook(const CANPacket_t *msg) {
   }
 
   // TODO: sanity check cancel spam, once a button message is found
-
-  // FIXME: don't actually run any checks during early testing
-  tx |= true;
 
   return tx;
 }
