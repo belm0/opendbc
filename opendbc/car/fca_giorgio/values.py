@@ -7,6 +7,7 @@ from opendbc.car.fw_query_definitions import FwQueryConfig, Request, StdQueries
 
 Ecu = CarParams.Ecu
 
+
 class CarControllerParams:
   STEER_STEP = 1
   HUD_1_STEP = 50
@@ -66,6 +67,7 @@ class CAR(Platforms):
     # rough specs for Promaster 2500 with medium wheelbase
     FcaGiorgioCarSpecs(mass=2177, wheelbase=3.45),
   )
+
 
 FW_QUERY_CONFIG = FwQueryConfig(
   requests=[

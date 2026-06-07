@@ -5,6 +5,7 @@ from opendbc.safety.tests.libsafety import libsafety_py
 import opendbc.safety.tests.common as common
 from opendbc.safety.tests.common import CANPackerSafety
 
+
 class TestFcaGiorgio_Safety(common.CarSafetyTest, common.MotorTorqueSteeringSafetyTest):
   RELAY_MALFUNCTION_ADDRS = {0: (0x1F6,)}
 
