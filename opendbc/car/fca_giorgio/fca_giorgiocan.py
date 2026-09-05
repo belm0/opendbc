@@ -19,7 +19,8 @@ def create_lka_hud_1_control(packer, bus, lat_active):
 def create_lka_hud_2_control(packer, bus, lat_active):
   values = {
     "LKA_DISABLE": 0,
-    "NEW_SIGNAL_1": 1,  # apparently inverse of LKA_DISABLE
+    # Stock HUD: idle=1, brief 0 while LKA_ACTIVE=1 (also saw 6 when LKA was "ready")
+    "NEW_SIGNAL_1": 0 if lat_active else 1,
     "LKA_ACTIVE": lat_active,
   }
 
