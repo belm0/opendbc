@@ -11,6 +11,7 @@
 // TODO: this isn't actually an LKA message on promester, coming from radar ECU
 #define FCA_GIORGIO_LKA_HUD_1       0x4AEU
 #define FCA_GIORGIO_LKA_HUD_2       0x547U
+#define FCA_GIORGIO_LKA_HUD_3       0x5A2U
 #define FCA_GIORGIO_ACC_2           0x22AU
 
 static uint8_t fca_giorgio_crc8_lut_j1850[256];  // Static lookup table for CRC8 SAE J1850
@@ -24,6 +25,7 @@ static safety_config fca_giorgio_init(uint16_t param) {
     {FCA_GIORGIO_LKA_COMMAND_2, 0, 4, .check_relay = true},
     {FCA_GIORGIO_LKA_HUD_1, 0, 8, .check_relay = true},
     {FCA_GIORGIO_LKA_HUD_2, 0, 8, .check_relay = true},
+    {FCA_GIORGIO_LKA_HUD_3, 0, 8, .check_relay = true},
   };
 
   // TODO: need to find a message for driver gas
