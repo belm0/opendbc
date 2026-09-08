@@ -146,17 +146,6 @@ static bool fca_giorgio_tx_hook(const CANPacket_t *msg) {
     }
   }
 
-  if (msg->addr == FCA_GIORGIO_LKA_COMMAND_2) {
-    // Signal: LKA_COMMAND_2.LKA_TORQUE (12-bit, ~4x scale of LKA_COMMAND), normalized to LKA_COMMAND units
-    int desired_torque = (((msg->data[0] << 4) | (msg->data[1] >> 4)) - 2048U) / 4U;
-    // Signal: LKA_COMMAND_2.LKA_ACTIVE
-    bool steer_req = GET_BIT(msg, 11U);
-
-    if (steer_torque_cmd_checks(desired_torque, steer_req, FCA_GIORGIO_STEERING_LIMITS)) {
-      tx = false;
-    }
-  }
-
   // TODO: sanity check cancel spam, once a button message is found
 
   return tx;
