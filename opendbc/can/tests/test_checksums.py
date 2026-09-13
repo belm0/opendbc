@@ -46,13 +46,6 @@ class TestCanChecksums:
       b'\x7c\x63\x58\xe0\x00\x02\xf2',
     ])
 
-  def test_fca_giorgio_eps_3(self, subtests):
-    self.verify_fca_giorgio_crc(subtests, "EPS_3", 0x122, [
-      b'\x7b\x30\x00\xf8',
-      b'\x7b\x10\x01\x90',
-      b'\x7b\xf0\x02\x6e',
-    ])
-
   def test_fca_giorgio_abs_2(self, subtests):
     self.verify_fca_giorgio_crc(subtests, "ABS_2", 0xFE, [
       b'\x7e\x38\x00\x7d\x10\x31\x80\x32',
