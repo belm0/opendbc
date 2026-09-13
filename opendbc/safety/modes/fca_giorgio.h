@@ -29,8 +29,7 @@ static safety_config fca_giorgio_init(uint16_t param) {
   };
 
   // TODO: need to find a message for driver gas
-  // TODO: re-check counter/checksum for ABS_3
-  // TODO: re-enable checksums/counters once poly and final XORs are fixed below
+  // TODO: re-enable checksums/counters
   static RxCheck fca_giorgio_rx_checks[] = {
     {.msg = {{FCA_GIORGIO_ACC_2, 2, 8, 10U, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true}, { 0 }, { 0 }}},
     {.msg = {{FCA_GIORGIO_ABS_1, 0, 8, 100U, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true}, { 0 }, { 0 }}},
@@ -49,8 +48,14 @@ static uint32_t fca_giorgio_get_checksum(const CANPacket_t *msg) {
 }
 
 static uint8_t fca_giorgio_get_counter(const CANPacket_t *msg) {
-  int counter_byte = GET_LEN(msg) - 2U;
-  return (uint8_t)msg->data[counter_byte] & 0xFU;
+  uint8_t counter;
+  if (msg->addr == FCA_GIORGIO_ABS_3) {
+    counter = (uint8_t)((msg->data[4] >> 3) & 0xFU);
+  } else {
+    int counter_byte = GET_LEN(msg) - 2U;
+    counter = (uint8_t)msg->data[counter_byte] & 0xFU;
+  }
+  return counter;
 }
 
 static uint32_t fca_giorgio_compute_crc(const CANPacket_t *msg) {
