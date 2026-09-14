@@ -14,6 +14,13 @@ class CarState(CarStateBase):
     self.CCP = CarControllerParams(CP)
     self.lka_status = 0
 
+    self.cam_lka_counter = 0
+    self.cam_lka_torque = 0
+    self.cam_lka_active = False
+    self.cam_lka2_counter = 0
+    self.cam_lka2_torque = 0
+    self.cam_lka2_active = False
+
   def update(self, can_parsers) -> structs.CarState:
     pt_cp = can_parsers[Bus.pt]
     pt_cam = can_parsers[Bus.cam]
@@ -64,6 +71,13 @@ class CarState(CarStateBase):
 
     # ret.doorOpen = bool(pt_cp.vl["BCM_2"]["DOOR_OPEN_FL"])
     ret.seatbeltUnlatched = bool(pt_cp.vl["BCM_2"]["SEATBELT_UNBUCKLED_FL"])
+
+    self.cam_lka_counter = int(pt_cam.vl["LKA_COMMAND"]["COUNTER"])
+    self.cam_lka_torque = int(pt_cam.vl["LKA_COMMAND"]["LKA_TORQUE"])
+    self.cam_lka_active = bool(pt_cam.vl["LKA_COMMAND"]["LKA_ACTIVE"])
+    self.cam_lka2_counter = int(pt_cam.vl["LKA_COMMAND_2"]["COUNTER"])
+    self.cam_lka2_torque = int(pt_cam.vl["LKA_COMMAND_2"]["LKA_TORQUE"])
+    self.cam_lka2_active = bool(pt_cam.vl["LKA_COMMAND_2"]["LKA_ACTIVE"])
 
     self.frame += 1
     return ret

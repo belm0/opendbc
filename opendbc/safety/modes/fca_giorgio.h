@@ -23,9 +23,6 @@ static safety_config fca_giorgio_init(uint16_t param) {
   static const CanMsg FCA_GIORGIO_TX_MSGS[] = {
     {FCA_GIORGIO_LKA_COMMAND, 0, 4, .check_relay = true},
     {FCA_GIORGIO_LKA_COMMAND_2, 0, 4, .check_relay = true},
-    {FCA_GIORGIO_LKA_HUD_1, 0, 8, .check_relay = true},
-    {FCA_GIORGIO_LKA_HUD_2, 0, 8, .check_relay = true},
-    {FCA_GIORGIO_LKA_HUD_3, 0, 8, .check_relay = true},
   };
 
   // TODO: need to find a message for driver gas
@@ -115,34 +112,8 @@ static void fca_giorgio_rx_hook(const CANPacket_t *msg) {
 }
 
 static bool fca_giorgio_tx_hook(const CANPacket_t *msg) {
-  // lateral limits
-  const TorqueSteeringLimits FCA_GIORGIO_STEERING_LIMITS = {
-    .max_torque = 300,
-    .max_rt_delta = 150,
-    .max_rate_up = 4,
-    .max_rate_down = 4,
-    .driver_torque_allowance = 80,
-    .driver_torque_multiplier = 3,
-    .type = TorqueDriverLimited,
-  };
-
-  bool tx = true;
-
-  // Safety check for commanded steering torque
-  if (msg->addr == FCA_GIORGIO_LKA_COMMAND) {
-    // Signal: LKA_COMMAND.LKA_TORQUE
-    int desired_torque = ((msg->data[0] << 3) | (msg->data[1] >> 5)) - 1024U;
-    // Signal: LKA_COMMAND.LKA_ACTIVE
-    bool steer_req = GET_BIT(msg, 12U);
-
-    if (steer_torque_cmd_checks(desired_torque, steer_req, FCA_GIORGIO_STEERING_LIMITS)) {
-      tx = false;
-    }
-  }
-
-  // TODO: sanity check cancel spam, once a button message is found
-
-  return tx;
+  SAFETY_UNUSED(msg);
+  return true;
 }
 
 const safety_hooks fca_giorgio_hooks = {

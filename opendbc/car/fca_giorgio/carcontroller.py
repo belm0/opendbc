@@ -1,9 +1,10 @@
 from opendbc.can import CANPacker
 from opendbc.car import Bus
-from opendbc.car.lateral import apply_driver_steer_torque_limits
 from opendbc.car.interfaces import CarControllerBase
 from opendbc.car.fca_giorgio import fca_giorgiocan
 from opendbc.car.fca_giorgio.values import CanBus, CarControllerParams
+
+TORQUE_SCALE = 0.5
 
 
 class CarController(CarControllerBase):
@@ -12,40 +13,26 @@ class CarController(CarControllerBase):
     self.CCP = CarControllerParams(CP)
     self.CANBUS = CanBus(CP)
     self.packer_pt = CANPacker(dbc_names[Bus.pt])
-
-    self.apply_torque_last = 0
-    self.lat_active_last = False
     self.frame = 0
 
   def update(self, CC, CS, now_nanos):
     actuators = CC.actuators
     can_sends = []
 
-    # **** Steering Controls ************************************************ #
-
+    # Passthrough camera's LKA messages with scaled torque.
+    # HUD messages pass through unmodified (not in safety TX list).
     if self.frame % self.CCP.STEER_STEP == 0:
-      if CC.latActive and CS.lka_status == 2:  # "lka_active" per DBC
-        new_torque = int(round(actuators.torque * self.CCP.STEER_MAX))
-        apply_torque = apply_driver_steer_torque_limits(new_torque, self.apply_torque_last, CS.out.steeringTorque, self.CCP)
-      else:
-        apply_torque = 0
+      lka_torque = int(round(CS.cam_lka_torque * TORQUE_SCALE))
+      lka2_torque = int(round(CS.cam_lka2_torque * TORQUE_SCALE))
 
-      self.apply_torque_last = apply_torque
-      can_sends.append(fca_giorgiocan.create_steering_control(self.packer_pt, self.CANBUS.pt, "LKA_COMMAND", apply_torque, CC.latActive))
-      can_sends.append(fca_giorgiocan.create_steering_control(self.packer_pt, self.CANBUS.pt, "LKA_COMMAND_2", apply_torque * 4, CC.latActive))
-
-    # **** HUD Controls ***************************************************** #
-
-    if self.frame % self.CCP.HUD_2_STEP == 0:
-      can_sends.append(fca_giorgiocan.create_lka_hud_2_control(self.packer_pt, self.CANBUS.pt, CC.latActive))
-    lat_active_rising = CC.latActive and not self.lat_active_last
-    if self.frame % self.CCP.HUD_3_STEP == 0 or lat_active_rising:
-      can_sends.append(fca_giorgiocan.create_lka_hud_3_control(self.packer_pt, self.CANBUS.pt, CC.latActive))
-    self.lat_active_last = CC.latActive
+      can_sends.append(fca_giorgiocan.create_steering_control(self.packer_pt, self.CANBUS.pt, "LKA_COMMAND",
+                                                               lka_torque, CS.cam_lka_active, counter=CS.cam_lka_counter))
+      can_sends.append(fca_giorgiocan.create_steering_control(self.packer_pt, self.CANBUS.pt, "LKA_COMMAND_2",
+                                                               lka2_torque, CS.cam_lka2_active, counter=CS.cam_lka2_counter))
 
     new_actuators = actuators.as_builder()
-    new_actuators.torque = self.apply_torque_last / self.CCP.STEER_MAX
-    new_actuators.torqueOutputCan = self.apply_torque_last
+    new_actuators.torque = 0
+    new_actuators.torqueOutputCan = 0
 
     self.frame += 1
     return new_actuators, can_sends

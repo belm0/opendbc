@@ -1,8 +1,10 @@
-def create_steering_control(packer, bus, msg, apply_steer, lat_active):
+def create_steering_control(packer, bus, msg, apply_steer, lat_active, counter=None):
   values = {
     "LKA_ACTIVE": lat_active,
     "LKA_TORQUE": apply_steer,
   }
+  if counter is not None:
+    values["COUNTER"] = counter
 
   return packer.make_can_msg(msg, bus, values)
 
