@@ -22,13 +22,10 @@ class CarController(CarControllerBase):
     # Passthrough camera's LKA messages with scaled torque.
     # HUD messages pass through unmodified (not in safety TX list).
     if self.frame % self.CCP.STEER_STEP == 0:
-      lka_torque = int(round(CS.cam_lka_torque * TORQUE_SCALE))
-      lka2_torque = int(round(CS.cam_lka2_torque * TORQUE_SCALE))
-
-      can_sends.append(fca_giorgiocan.create_steering_control(self.packer_pt, self.CANBUS.pt, "LKA_COMMAND",
-                                                               lka_torque, CS.cam_lka_active, counter=CS.cam_lka_counter))
-      can_sends.append(fca_giorgiocan.create_steering_control(self.packer_pt, self.CANBUS.pt, "LKA_COMMAND_2",
-                                                               lka2_torque, CS.cam_lka2_active, counter=CS.cam_lka2_counter))
+      can_sends.append(fca_giorgiocan.create_steering_passthrough(self.packer_pt, self.CANBUS.pt, "LKA_COMMAND",
+                                                                   CS.cam_lka_values, TORQUE_SCALE))
+      can_sends.append(fca_giorgiocan.create_steering_passthrough(self.packer_pt, self.CANBUS.pt, "LKA_COMMAND_2",
+                                                                   CS.cam_lka2_values, TORQUE_SCALE))
 
     new_actuators = actuators.as_builder()
     new_actuators.torque = 0

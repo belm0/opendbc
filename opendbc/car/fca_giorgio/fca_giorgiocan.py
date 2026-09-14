@@ -1,11 +1,16 @@
-def create_steering_control(packer, bus, msg, apply_steer, lat_active, counter=None):
+def create_steering_control(packer, bus, msg, apply_steer, lat_active):
   values = {
     "LKA_ACTIVE": lat_active,
     "LKA_TORQUE": apply_steer,
   }
-  if counter is not None:
-    values["COUNTER"] = counter
 
+  return packer.make_can_msg(msg, bus, values)
+
+
+def create_steering_passthrough(packer, bus, msg, cam_values, torque_scale):
+  values = dict(cam_values)
+  values["LKA_TORQUE"] = int(round(values["LKA_TORQUE"] * torque_scale))
+  values["CHECKSUM"] = 0
   return packer.make_can_msg(msg, bus, values)
 
 
