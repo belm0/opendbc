@@ -4,7 +4,7 @@ from opendbc.car.interfaces import CarControllerBase
 from opendbc.car.fca_giorgio import fca_giorgiocan
 from opendbc.car.fca_giorgio.values import CanBus, CarControllerParams
 
-TORQUE_SCALE = 0.5
+TORQUE_SCALE = 0.66
 
 
 class CarController(CarControllerBase):
