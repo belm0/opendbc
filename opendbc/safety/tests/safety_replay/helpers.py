@@ -28,6 +28,8 @@ def is_steering_msg(mode, param, addr):
                    0x12A)
   elif mode == CarParams.SafetyModel.chrysler:
     ret = addr == 0x292
+  elif mode == CarParams.SafetyModel.fcaGiorgio:
+    ret = addr == 0x1F6
   elif mode == CarParams.SafetyModel.subaru:
     ret = addr == 0x122
   elif mode == CarParams.SafetyModel.ford:
@@ -63,6 +65,8 @@ def get_steer_value(mode, param, msg):
     torque = ((msg.data[5] >> 1) | (msg.data[6] & 0xF) << 7) - 1024
   elif mode == CarParams.SafetyModel.chrysler:
     torque = (((msg.data[0] & 0x7) << 8) | msg.data[1]) - 1024
+  elif mode == CarParams.SafetyModel.fcaGiorgio:
+    torque = ((msg.data[0] << 3) | (msg.data[1] >> 5)) - 1024
   elif mode == CarParams.SafetyModel.subaru:
     torque = ((msg.data[3] & 0x1F) << 8) | msg.data[2]
     torque = -to_signed(torque, 13)
