@@ -13,19 +13,20 @@
 #define FCA_GIORGIO_LKA_HUD_2       0x547U
 #define FCA_GIORGIO_LKA_HUD_3       0x5A2U
 #define FCA_GIORGIO_ACC_2           0x22AU
+#define FCA_GIORGIO_ACC_BUTTON      0x2FAU
 
 static uint8_t fca_giorgio_crc8_lut_j1850[256];  // Static lookup table for CRC8 SAE J1850
 
 static safety_config fca_giorgio_init(uint16_t param) {
   SAFETY_UNUSED(param);
 
-  // TODO: need to find a button message for cancel spam
   static const CanMsg FCA_GIORGIO_TX_MSGS[] = {
     {FCA_GIORGIO_LKA_COMMAND, 0, 4, .check_relay = true},
     {FCA_GIORGIO_LKA_COMMAND_2, 0, 4, .check_relay = true},
     {FCA_GIORGIO_LKA_HUD_1, 0, 8, .check_relay = true},
     {FCA_GIORGIO_LKA_HUD_2, 0, 8, .check_relay = true},
     {FCA_GIORGIO_LKA_HUD_3, 0, 8, .check_relay = true},
+    {FCA_GIORGIO_ACC_BUTTON, 2, 4, .check_relay = false},
   };
 
   // TODO: re-enable checksums/counters
@@ -139,7 +140,14 @@ static bool fca_giorgio_tx_hook(const CANPacket_t *msg) {
     }
   }
 
-  // TODO: sanity check cancel spam, once a button message is found
+  // FORCE CANCEL: only the cancel button press is allowed
+  if (msg->addr == FCA_GIORGIO_ACC_BUTTON) {
+    // Signal: ACC_BUTTON.CANCEL, with no other button and the constant bits as sent by the car
+    const bool is_cancel = (msg->data[0] == 0x80U) && ((msg->data[1] & 0xF0U) == 0x30U);
+    if (!is_cancel) {
+      tx = false;
+    }
+  }
 
   return tx;
 }
