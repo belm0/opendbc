@@ -17,8 +17,15 @@
 
 static uint8_t fca_giorgio_crc8_lut_j1850[256];  // Static lookup table for CRC8 SAE J1850
 
+// Last LKA_COMMAND allowed by the tx hook. LKA_COMMAND_2 must mirror it (the EPS can steer from LKA_COMMAND_2 alone).
+static int fca_giorgio_lka_torque_last = 0;
+static bool fca_giorgio_lka_steer_req_last = false;
+
 static safety_config fca_giorgio_init(uint16_t param) {
   SAFETY_UNUSED(param);
+
+  fca_giorgio_lka_torque_last = 0;
+  fca_giorgio_lka_steer_req_last = false;
 
   static const CanMsg FCA_GIORGIO_TX_MSGS[] = {
     {FCA_GIORGIO_LKA_COMMAND, 0, 4, .check_relay = true},
@@ -136,6 +143,27 @@ static bool fca_giorgio_tx_hook(const CANPacket_t *msg) {
     bool steer_req = GET_BIT(msg, 12U);
 
     if (steer_torque_cmd_checks(desired_torque, steer_req, FCA_GIORGIO_STEERING_LIMITS)) {
+      tx = false;
+      fca_giorgio_lka_torque_last = 0;
+      fca_giorgio_lka_steer_req_last = false;
+    } else {
+      fca_giorgio_lka_torque_last = desired_torque;
+      fca_giorgio_lka_steer_req_last = steer_req;
+    }
+  }
+
+  // LKA_COMMAND_2 is a 4x scaled copy of LKA_COMMAND. The EPS is suspected to listen only to LKA_COMMAND_2: it
+  // engaged and steered with LKA_COMMAND_2 alone, and stock sends LKA_COMMAND one frame later as a rounded copy
+  // of LKA_COMMAND_2 / 4, so the two aren't exact 4x matches in stock routes. Rather than running the
+  // shared torque rate-limit state twice per frame, only allow an exact copy of the last allowed LKA_COMMAND
+  // (which openpilot sends first each frame). After a blocked LKA_COMMAND, only zero torque is allowed.
+  if (msg->addr == FCA_GIORGIO_LKA_COMMAND_2) {
+    // Signal: LKA_COMMAND_2.LKA_TORQUE
+    int desired_torque = ((msg->data[0] << 4) | (msg->data[1] >> 4)) - 2048U;
+    // Signal: LKA_COMMAND_2.LKA_ACTIVE
+    bool steer_req = GET_BIT(msg, 11U);
+
+    if ((desired_torque != (fca_giorgio_lka_torque_last * 4)) || (steer_req != fca_giorgio_lka_steer_req_last)) {
       tx = false;
     }
   }
