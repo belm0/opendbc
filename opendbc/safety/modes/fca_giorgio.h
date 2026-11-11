@@ -46,13 +46,13 @@ static safety_config fca_giorgio_init(uint16_t param) {
     {FCA_GIORGIO_ACC_BUTTON, 2, 4, .check_relay = false},
   };
 
-  // TODO: re-enable checksums/counters
+  // no quality flag signals are known
   static RxCheck fca_giorgio_rx_checks[] = {
-    {.msg = {{FCA_GIORGIO_ACC_2, 2, 8, 10U, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true}, { 0 }, { 0 }}},
-    {.msg = {{FCA_GIORGIO_ABS_1, 0, 8, 100U, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true}, { 0 }, { 0 }}},
-    {.msg = {{FCA_GIORGIO_ABS_3, 0, 8, 100U, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true}, { 0 }, { 0 }}},
-    {.msg = {{FCA_GIORGIO_ENGINE_2, 0, 8, 100U, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true}, { 0 }, { 0 }}},
-    {.msg = {{FCA_GIORGIO_EPS_2, 0, 7, 100U, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true}, { 0 }, { 0 }}},
+    {.msg = {{FCA_GIORGIO_ACC_2, 2, 8, 10U, .max_counter = 15U, .ignore_quality_flag = true}, { 0 }, { 0 }}},
+    {.msg = {{FCA_GIORGIO_ABS_1, 0, 8, 100U, .max_counter = 15U, .ignore_quality_flag = true}, { 0 }, { 0 }}},
+    {.msg = {{FCA_GIORGIO_ABS_3, 0, 8, 100U, .max_counter = 15U, .ignore_quality_flag = true}, { 0 }, { 0 }}},
+    {.msg = {{FCA_GIORGIO_ENGINE_2, 0, 8, 100U, .max_counter = 15U, .ignore_quality_flag = true}, { 0 }, { 0 }}},
+    {.msg = {{FCA_GIORGIO_EPS_2, 0, 7, 100U, .max_counter = 15U, .ignore_quality_flag = true}, { 0 }, { 0 }}},
   };
 
   gen_crc_lookup_table_8(0x1D, fca_giorgio_crc8_lut_j1850);
@@ -93,8 +93,7 @@ static void fca_giorgio_rx_hook(const CANPacket_t *msg) {
   if (msg->bus == 0U) {
     // Update in-motion state by sampling wheel speeds
     if (msg->addr == FCA_GIORGIO_ABS_1) {
-      // Thanks, FCA, for these 13 bit signals. Makes perfect sense. Great work.
-      // Signals: ABS_3.WHEEL_SPEED_[FL,FR,RL,RR]
+      // Signals: ABS_1.WHEEL_SPEED_[FL,FR,RL,RR]
       int wheel_speed_fl = (msg->data[1] >> 3) | (msg->data[0] << 5);
       int wheel_speed_fr = (msg->data[3] >> 6) | (msg->data[2] << 2) | ((msg->data[1] & 0x7U) << 10);
       int wheel_speed_rl = (msg->data[4] >> 1) | ((msg->data[3] & 0x3FU) << 7);
@@ -125,7 +124,6 @@ static void fca_giorgio_rx_hook(const CANPacket_t *msg) {
       // When using stock ACC, enter controls on rising edge of stock ACC engage, exit on disengage
       // Signal: ACC_2.CRUISE_STATUS
       bool cruise_engaged = GET_BIT(msg, 23U);
-      acc_main_on = true;
       pcm_cruise_check(cruise_engaged);
     }
   }
