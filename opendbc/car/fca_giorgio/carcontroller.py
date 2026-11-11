@@ -33,7 +33,7 @@ class CarController(CarControllerBase):
         # This van uses PID rather than the torque controller (see interface.py): the torque it needs tracks steering
         # angle times speed, not lateral accel, and the torque controller's fixed low-speed gain made it oscillate.
         # PID lacks the torque controller's steering friction compensation, though, and without it PID sticks at the
-        # steering friction (~10 counts) and tracks small changes poorly. So add it here: push toward the desired angle
+        # steering friction (~40 counts) and tracks small changes poorly. So add it here: push toward the desired angle
         # (from the PID controller) with up to STEER_FRICTION counts, over a band that widens at low speed (see values.py).
         # Only with PID: the other controllers don't report a desired angle.
         angle_error = actuators.steeringAngleDeg - CS.out.steeringAngleDeg if self.use_friction else 0.
@@ -58,10 +58,12 @@ class CarController(CarControllerBase):
         self.release_hold_frames -= 1
 
       self.apply_torque_last = apply_torque
-      # The EPS is suspected to listen only to LKA_COMMAND_2 (4x scale). Panda safety requires it to be an exact
-      # 4x copy of LKA_COMMAND, sent after it in the same frame.
-      can_sends.append(fca_giorgiocan.create_steering_control(self.packer_pt, self.CANBUS.pt, "LKA_COMMAND", apply_torque, lka_active))
-      can_sends.append(fca_giorgiocan.create_steering_control(self.packer_pt, self.CANBUS.pt, "LKA_COMMAND_2", apply_torque * 4, lka_active))
+      # The EPS is suspected to listen only to LKA_COMMAND_2. LKA_COMMAND is a 1/4 scale copy, which panda safety
+      # requires to follow LKA_COMMAND_2 in the same frame.
+      # TODO: try removing LKA_COMMAND if the EPS steers without it
+      can_sends.append(fca_giorgiocan.create_steering_control(self.packer_pt, self.CANBUS.pt, "LKA_COMMAND_2", apply_torque, lka_active))
+      can_sends.append(fca_giorgiocan.create_steering_control(self.packer_pt, self.CANBUS.pt, "LKA_COMMAND",
+                                                              fca_giorgiocan.lka_command_torque(apply_torque), lka_active))
 
     # **** HUD Controls ***************************************************** #
 
