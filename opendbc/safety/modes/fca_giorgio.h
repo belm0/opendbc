@@ -16,24 +16,24 @@
 
 static uint8_t fca_giorgio_crc8_lut_j1850[256];  // Static lookup table for CRC8 SAE J1850
 
-// Last LKA_COMMAND allowed by the tx hook. LKA_COMMAND_2 must mirror it (the EPS can steer from LKA_COMMAND_2 alone).
-static int fca_giorgio_lka_torque_last = 0;
-static bool fca_giorgio_lka_steer_req_last = false;
+// Last LKA_COMMAND_2 allowed by the tx hook. LKA_COMMAND must mirror it at 1/4 scale.
+static int fca_giorgio_lka_2_torque_last = 0;
+static bool fca_giorgio_lka_2_steer_req_last = false;
 
 // Torque winddown after controls are lost (e.g. brake press). Cutting torque to zero in one frame is suspected of
 // latching EPS LKA_FAULT, and stock LKA always ramps down. After a disengage, allow torque that never grows in
 // magnitude or changes sign, with LKA_ACTIVE set, for a limited time. Like volkswagen_meb's steer power winddown.
-#define FCA_GIORGIO_WINDDOWN_MAX_US 1500000U  // STEER_MAX at 3/frame takes 1 s
+#define FCA_GIORGIO_WINDDOWN_MAX_US 1500000U  // STEER_MAX at 12/frame takes 1 s
 #define FCA_GIORGIO_WINDDOWN_MAX_GAP_US 50000U  // longest gap since the last allowed frame (blocked frames don't count)
 static int fca_giorgio_winddown_torque = 0;  // torque the EPS last received; 0 when winddown isn't possible
-static uint32_t fca_giorgio_ts_lka_last = 0;  // time of the last allowed LKA_COMMAND
-static uint32_t fca_giorgio_ts_controls_last = 0;  // time of the last allowed LKA_COMMAND while controls were allowed
+static uint32_t fca_giorgio_ts_lka_last = 0;  // time of the last allowed LKA_COMMAND_2
+static uint32_t fca_giorgio_ts_controls_last = 0;  // time of the last allowed LKA_COMMAND_2 while controls were allowed
 
 static safety_config fca_giorgio_init(uint16_t param) {
   SAFETY_UNUSED(param);
 
-  fca_giorgio_lka_torque_last = 0;
-  fca_giorgio_lka_steer_req_last = false;
+  fca_giorgio_lka_2_torque_last = 0;
+  fca_giorgio_lka_2_steer_req_last = false;
   fca_giorgio_winddown_torque = 0;
   fca_giorgio_ts_lka_last = 0;
   fca_giorgio_ts_controls_last = 0;
@@ -140,25 +140,25 @@ static bool fca_giorgio_winddown_allowed(int desired_torque, bool steer_req, uin
 }
 
 static bool fca_giorgio_tx_hook(const CANPacket_t *msg) {
-  // lateral limits
+  // lateral limits, in LKA_COMMAND_2 units (4x LKA_COMMAND)
   const TorqueSteeringLimits FCA_GIORGIO_STEERING_LIMITS = {
-    .max_torque = 300,
-    .max_rt_delta = 112,
-    .max_rate_up = 3,
-    .max_rate_down = 3,
+    .max_torque = 1200,
+    .max_rt_delta = 448,
+    .max_rate_up = 12,
+    .max_rate_down = 12,
     .driver_torque_allowance = 80,
-    .driver_torque_multiplier = 2,
+    .driver_torque_multiplier = 8,
     .type = TorqueDriverLimited,
   };
 
   bool tx = true;
 
   // Safety check for commanded steering torque
-  if (msg->addr == FCA_GIORGIO_LKA_COMMAND) {
-    // Signal: LKA_COMMAND.LKA_TORQUE
-    int desired_torque = ((msg->data[0] << 3) | (msg->data[1] >> 5)) - 1024U;
-    // Signal: LKA_COMMAND.LKA_ACTIVE
-    bool steer_req = GET_BIT(msg, 12U);
+  if (msg->addr == FCA_GIORGIO_LKA_COMMAND_2) {
+    // Signal: LKA_COMMAND_2.LKA_TORQUE
+    int desired_torque = ((msg->data[0] << 4) | (msg->data[1] >> 4)) - 2048U;
+    // Signal: LKA_COMMAND_2.LKA_ACTIVE
+    bool steer_req = GET_BIT(msg, 11U);
 
     uint32_t ts = microsecond_timer_get();
     bool allowed;
@@ -176,8 +176,8 @@ static bool fca_giorgio_tx_hook(const CANPacket_t *msg) {
     }
 
     if (allowed) {
-      fca_giorgio_lka_torque_last = desired_torque;
-      fca_giorgio_lka_steer_req_last = steer_req;
+      fca_giorgio_lka_2_torque_last = desired_torque;
+      fca_giorgio_lka_2_steer_req_last = steer_req;
       fca_giorgio_winddown_torque = desired_torque;
       fca_giorgio_ts_lka_last = ts;
       if (controls_allowed) {
@@ -185,23 +185,24 @@ static bool fca_giorgio_tx_hook(const CANPacket_t *msg) {
       }
     } else {
       tx = false;
-      fca_giorgio_lka_torque_last = 0;
-      fca_giorgio_lka_steer_req_last = false;
+      fca_giorgio_lka_2_torque_last = 0;
+      fca_giorgio_lka_2_steer_req_last = false;
     }
   }
 
-  // LKA_COMMAND_2 is a 4x scaled copy of LKA_COMMAND. The EPS is suspected to listen only to LKA_COMMAND_2: it
+  // LKA_COMMAND is a 1/4 scale copy of LKA_COMMAND_2. The EPS is suspected to listen only to LKA_COMMAND_2: it
   // engaged and steered with LKA_COMMAND_2 alone, and stock sends LKA_COMMAND one frame later as a rounded copy
-  // of LKA_COMMAND_2 / 4, so the two aren't exact 4x matches in stock routes. Rather than running the
-  // shared torque rate-limit state twice per frame, only allow an exact copy of the last allowed LKA_COMMAND
-  // (which openpilot sends first each frame). After a blocked LKA_COMMAND, only zero torque is allowed.
-  if (msg->addr == FCA_GIORGIO_LKA_COMMAND_2) {
-    // Signal: LKA_COMMAND_2.LKA_TORQUE
-    int desired_torque = ((msg->data[0] << 4) | (msg->data[1] >> 4)) - 2048U;
-    // Signal: LKA_COMMAND_2.LKA_ACTIVE
-    bool steer_req = GET_BIT(msg, 11U);
+  // of LKA_COMMAND_2 / 4. Rather than running the shared torque rate-limit state twice per frame, only allow a
+  // rounded copy of the last allowed LKA_COMMAND_2 (which openpilot sends first each frame). Either rounding
+  // direction is allowed. After a blocked LKA_COMMAND_2, only zero torque is allowed.
+  if (msg->addr == FCA_GIORGIO_LKA_COMMAND) {
+    // Signal: LKA_COMMAND.LKA_TORQUE
+    int desired_torque = ((msg->data[0] << 3) | (msg->data[1] >> 5)) - 1024U;
+    // Signal: LKA_COMMAND.LKA_ACTIVE
+    bool steer_req = GET_BIT(msg, 12U);
 
-    if ((desired_torque != (fca_giorgio_lka_torque_last * 4)) || (steer_req != fca_giorgio_lka_steer_req_last)) {
+    int rounding_error = (desired_torque * 4) - fca_giorgio_lka_2_torque_last;
+    if ((rounding_error > 2) || (rounding_error < -2) || (steer_req != fca_giorgio_lka_2_steer_req_last)) {
       tx = false;
     }
   }
