@@ -95,7 +95,7 @@ static void fca_atlantis_rx_hook(const CANPacket_t *msg) {
 // Winddown torque limit at time ts: falls from the last torque allowed while engaged, and reaches zero by itself
 static int fca_atlantis_winddown_limit(uint32_t ts) {
   uint32_t frames = safety_get_ts_elapsed(ts, safety.fca_atlantis_ts_engaged) / FCA_ATLANTIS_FRAME_US;
-  int engaged = safety_abs_int(safety.fca_atlantis_engaged_torque);
+  int engaged = safety_max_int(safety.fca_atlantis_engaged_torque, -safety.fca_atlantis_engaged_torque);
   int limit = engaged - (FCA_ATLANTIS_MAX_RATE_DOWN * ((int)frames - FCA_ATLANTIS_WINDDOWN_SLACK_FRAMES));
   return safety_max_int(safety_min_int(limit, engaged), 0);
 }
@@ -105,8 +105,9 @@ static bool fca_atlantis_winddown_allowed(int desired_torque, bool steer_req, ui
   bool allowed = !safety.controls_allowed && steer_req && (desired_torque != 0) && (last != 0);
   // same sign, magnitude not growing, and under the falling limit
   allowed = allowed && ((desired_torque > 0) == (last > 0));
-  allowed = allowed && (safety_abs_int(desired_torque) <= safety_abs_int(last));
-  allowed = allowed && (safety_abs_int(desired_torque) <= fca_atlantis_winddown_limit(ts));
+  allowed = allowed && (safety_max_int(desired_torque, -desired_torque) <= safety_max_int(last, -last));
+  int limit = fca_atlantis_winddown_limit(ts);
+  allowed = allowed && !safety_max_limit_check(desired_torque, limit, -limit);
   return allowed;
 }
 
@@ -185,7 +186,7 @@ static bool fca_atlantis_tx_hook(const CANPacket_t *msg) {
     bool steer_req = GET_BIT(msg, 12U);
 
     int rounding_error = (desired_torque * 4) - safety.fca_atlantis_lka_copy_torque;
-    bool is_copy = safety.fca_atlantis_lka_copy_pending && (safety_abs_int(rounding_error) <= 2) &&
+    bool is_copy = safety.fca_atlantis_lka_copy_pending && !safety_max_limit_check(rounding_error, 2, -2) &&
                    (steer_req == safety.fca_atlantis_lka_copy_steer_req);
     if (is_copy) {
       safety.fca_atlantis_lka_copy_pending = false;
