@@ -63,6 +63,9 @@ class FcaAtlantisCarSpecs(CarSpecs):
   # van learned ~18.4 in city driving, about 136/159 of the 159" value (the wheelbases share a steering rack).
   # 17.5 sits between the 136" estimates for highway (20.3 * 136/159 = 17.4) and city (~18.2).
   steerRatio: float = 17.5
+  # Converted (camper) 159" vans understeer more at highway speed than the default vehicle model predicts. Lighter vans
+  # may understeer less; not yet measured.
+  tireStiffnessFactor: float = 0.8
   # minSteerSpeed: float = 13.8 # m/s
 
 
